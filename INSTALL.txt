@@ -1,0 +1,13 @@
+================================================================================
+Installing exCeption
+================================================================================
+
+exCeption consists of a single header file, 'exception.h'. It is zlib licensed,
+so you can just include it with the source code of your application.
+
+Alternatively, you can install it in a system-wide directory (e.g /usr/include).
+
+
+-- Aggelos Kolaitis <neoaggelos@gmail.com>
+ 
+          
