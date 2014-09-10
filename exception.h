@@ -33,9 +33,7 @@
  *    code that might raise an exception using throw() or raise_exception()
  *  } catch(type, e) {
  *    do something with the caught exception
- *
- *    endcatch;
- *  }
+ *  } endcatch;
  *
  *  In C++ you would write:
  *
@@ -48,10 +46,10 @@
  *  FEATURES:
  *  ---------
  *  + It is written in ANSI C
+ *  + Allows nested try-catch blocks
  *  + Uses well-known C++ syntax (try { } catch() { } blocks)
  *  + Allows throwing any type of exception. The type of exception caught
  *    must be declared in catch [e.g. catch(int, e) or catch(char*, e)]
- *  - No nested try { } catch { } blocks supported yet
  *  - No multiple catch { } blocks for different types of exceptions allowed
  *  - You must add 'endcatch;' at the end of catch { } blocks
  * 
@@ -66,51 +64,156 @@
 #error "exception.h must not be included in C++ code"
 #endif /* __cplusplus */
 
-/* Header files */
 #include <stdio.h>
 #include <stdlib.h>
 #include <setjmp.h>
 
-/* Static variables -- needed for exception handling */
-static jmp_buf _exc_buf;
-static int _exc_can_throw = 0;
-static void *_exc_what = (void*)0;
-
-/* Macro magic */
-#define try \
-  _exc_can_throw=1; \
-  if (!setjmp(_exc_buf))
-
-#define throw(e) \
-  if (_exc_can_throw) { \
-    _exc_can_throw=0;   \
-    _exc_what = (void*)e; \
-    longjmp(_exc_buf, 1); \
-  }
-
-#define catch(type, var) \
-  else { \
-    type var = (type)_exc_what;
-
-#define endcatch \
-  }
-
-/* Abstract type for exception handling */
+/**
+ * Abstract type for exception handling
+ */
 struct exception_t {
-  const char* name;
-  const char* reason;
-  void *userdata;
+  const char* name;   /* exception name               */
+  const char* reason; /* exception reason             */
+  void *userdata;     /* generic pointer for userdata */
 };
 
-/* Create a new exception */
-static struct exception_t *new_exception(const char*, const char*, void*);
+/**
+ * Create a new exception with name, reason and userdata
+ */
+static struct exception_t *new_exception(const char* name,
+                                         const char* reason,
+                                         void* userdata);
 
-/* Create a new exception and throw it */
-static void raise_exception(const char*, const char*, void*);
+/**
+ * Create a new exception and throw it
+ */
+static void raise_exception(const char* name,
+                            const char* reason,
+                            void* userdata);
 
-/* Print out the exception name and reason */
-static void print_exception(struct exception_t*);
+/**
+ * Print out the exception name and reason
+ *
+ * Note that this function is just for your convinience. In your code, you may
+ * access exception->name, exception->reason and exception->userdata directly 
+ */
+static void print_exception(struct exception_t* exception);
 
+/*******************************************************************************
+ *                                                                             *
+ * NOTHING IMPORTANT BELOW THIS, UNLESS YOU ARE A DEVELOPER OR WANT TO HAVE A  *
+ * LOOK AT UGLY PREPROCESSOR CODE.                                             *
+ *                                                                             *
+ * THE TYPICAL USER OF THE LIBRARY SHOULD NOT HAVE TO DO ANYTHING WITH THESE.  *
+ *                                                                             *
+ * C DEVELOPERS, HOWEVER, MIGHT FIND THE PART BELOW QUITE INTERESTING.         *
+ *                                                                             *
+ *******************************************************************************/
+
+/**
+ *  The _exception_t_node struct.
+ *  This struct contains information that are required for the try-catch macro
+ *  mechanism below to work correctly. It stores the jmp_buf that is used to
+ *  move into the catch block, as well as the thrown exception.
+ *
+ *  It is implemented as a linked-list to allow nested try-catch blocks.
+ *  Entering a try block pushes a new _exception_t_node at the head of a list
+ *  that is maintained internally (namely, _exc_head). Its information is then
+ *  used by throw(), which stores the thrown exception in '_exc_head->exception'
+ *  and then performs a long jump to '_exc_head->jmpbuf', which in turn leads
+ *  the control flow in the catch block.
+ *
+ *  The 'catch' macro, from its side, uses _exc_head->exception to initialize
+ *  its argument. Note that 'catch' does not free the no longer important
+ *  '_exc_head'. It is retained until we use 'endcatch;' This is because
+ *  internally, 'catch' itself is only reached when throw() is used in the try
+ *  block. But what if no exception is thrown? Then, catch would not be reached,
+ *  thus '_exc_head' would remain there, and because of that, either a memory
+ *  leak would happen, or much worse things like false long jumps (you really
+ *  don't want that).
+ *
+ *  Each macro below contains more specific information about what it actually
+ *  does.
+ *
+ *  NOTE: '_exc_head' is a pointer to the head of the internal list of exception
+ *  nodes. '_exc_node' is used as a temporary pointer for things like pushing a
+ *  new node in _exc_head, popping _exc_head from the list, etc. If you have the
+ *  slightest experience in implementing linked-lists, you can easily understand
+ *  its usage.
+ */
+struct _exception_t_node {
+  jmp_buf jmpbuf;
+  void *exception;
+
+  struct _exception_t_node *next;
+};
+static struct _exception_t_node* _exc_head = (void*)0;
+static struct _exception_t_node* _exc_node;
+
+/* Macro magic.
+ * This translates the try-catch syntax into the following:
+ *
+ * if (!setjmp(jmpbuf)) {
+ *    do something
+ * } else {
+ *    catch exception
+ * }
+ *
+ * throw() just does a long jump to the saved jmpbuf with return value 1, so
+ * that control goes into the catch block
+ */
+
+/**
+ * Entering a new try block.
+ * Create a new _exception_t_node, which will hold the jmp_buf that will be used
+ * in case we throw() an exception, plus a generic pointer for the thrown
+ * exception itself.
+ */
+#define try \
+  _exc_node = (void*)0;                                                             \
+  _exc_node = (struct _exception_t_node*)malloc(sizeof(struct _exception_t_node));  \
+  if (_exc_head) {                                                                  \
+    _exc_node->next = _exc_head;                                                    \
+  } else {                                                                          \
+    _exc_node->next = (void*)0;                                                     \
+  }                                                                                 \
+  _exc_head = _exc_node;                                                            \
+  if (!setjmp(_exc_head->jmpbuf))
+
+/**
+ * Thrown an exception
+ * If we are in a try block (that is, when '_exc_head' is valid, save the thrown
+ * exception in _exc_head and long jump into the appropriate jmpbuf, which is
+ * initialized in 'try'
+ */
+#define throw(e) \
+  if (_exc_head) {                    \
+    _exc_head->exception = (void*)e;  \
+    longjmp(_exc_head->jmpbuf, 1);    \
+  }
+
+/* Catch exception
+ * The 'else' is there to complete the 'if (!setjmp(jmpbuf))' that we did
+ * in 'try'. Also declare 'var' of type 'type' to store the thrown exception.
+ * Don't worry about the missing '}', this is handled in 'endcatch'.
+ */
+#define catch(type, var) \
+  else { type var = (type)_exc_head->exception;
+
+/* Finish a catch block
+ * The '}' at the beginning closes the '{' bracket from 'catch'. Furthermore,
+ * we pop _exc_head from the list of exceptions. If _exc_head->next is valid,
+ * then we were in a nested try-catch block. Make _exc_head point to it, so
+ * that the top-level catch will work. Otherwise, set _exc_head to 0
+ */
+#define endcatch \
+  }                               \
+  _exc_node = _exc_head;          \
+  if (_exc_head->next) {          \
+    _exc_head = _exc_head->next;  \
+  }                               \
+  free(_exc_node);                \
+  _exc_node = (void*)0;
 
 /*** implementation section for exception functions ***/
 static struct exception_t*

@@ -16,12 +16,12 @@ to do is include it in your code:
 Features
 ================================================================================
 
++ Nested try-catch blocks allowed.
 + You can throw any type of exception.
 + There is a built-in type for handling exceptions 'struct exception_t'.
 + Uses the well-known C++ syntax.
 + Written in ANSI C, works everywhere.
 
-- No nested try-catch blocks allowed.
 - No multiple catch blocks allowed for different types of exceptions.
 
 
@@ -43,12 +43,11 @@ Extension handling in C++ looks like this:
 
 With exCeption, you would write this:
 
-    try {
+    try {                         /* just like in C++ */
         ....
-    } catch(exception_type, e) {
+    } catch(exception_type, e) {  /* separate with comma */
         ....
-        endcatch;
-    }
+    } endcatch;                   /* important */
 
 
 -- Aggelos Kolaitis <neoaggelos@gmail.com>
