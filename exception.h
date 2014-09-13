@@ -187,9 +187,11 @@ static struct _exception_t_node* _exc_node;
  * initialized in 'try'
  */
 #define throw(e) \
-  if (_exc_head) {                    \
-    _exc_head->exception = (void*)e;  \
-    longjmp(_exc_head->jmpbuf, 1);    \
+  if (_exc_head) {                            \
+    _exc_head->exception = (void*)e;          \
+    longjmp(_exc_head->jmpbuf, 1);            \
+  } else {                                    \
+    printf("* Uncaught exception occured\n"); \
   }
 
 /* Catch exception
@@ -211,6 +213,8 @@ static struct _exception_t_node* _exc_node;
   _exc_node = _exc_head;          \
   if (_exc_head->next) {          \
     _exc_head = _exc_head->next;  \
+  } else {                        \
+    _exc_head = (void*) 0;        \
   }                               \
   free(_exc_node);                \
   _exc_node = (void*)0;
