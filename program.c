@@ -151,5 +151,11 @@ int main(int argc, char** argv)
         printf("We should never reach this\n");
     } endcatch;
 
+    /*
+     * Test uncaught exceptions. This should print an error
+     */
+    printf("This error message is excepted: ");
+    throw(5);
+
     return 0;
 }
