@@ -7,7 +7,9 @@ so you can just include it with the source code of your application.
 
 Alternatively, you can install it in a system-wide directory (e.g /usr/include).
 
+To get a quick taste of the library, just compile and run the example program.c
+included in the source code.
+
 
 -- Aggelos Kolaitis <neoaggelos@gmail.com>
  
-          
