@@ -78,26 +78,33 @@ struct exception_t {
 };
 
 /**
- * Create a new exception with name, reason and userdata
+ * - raise_exception("EXCEPTION NAME", "REASON", userdata);
+ *
+ * Raise an exception of type 'struct exception_t*' with name, reason and
+ * userdata
+ *
+ * \param _name      --> exception name                (const char*)
+ * \param _reason    --> reason why exception occured  (const char*)
+ * \param _userdata  --> additional userdata           (void*)
  */
-static struct exception_t *new_exception(const char* name,
-                                         const char* reason,
-                                         void* userdata);
+#define raise_exception(_name, _reason, _userdata)                                    \
+  do {                                                                                \
+    struct exception_t* e = (struct exception_t*)malloc(sizeof(struct exception_t));  \
+    e->name = _name;                                                                  \
+    e->reason = _reason;                                                              \
+    e->userdata = _userdata;                                                          \
+    throw(e);                                                                         \
+  } while(0);
 
 /**
- * Create a new exception and throw it
- */
-static void raise_exception(const char* name,
-                            const char* reason,
-                            void* userdata);
-
-/**
+ * - print_exception(exception)
+ *
  * Print out the exception name and reason
  *
- * Note that this function is just for your convinience. In your code, you may
- * access exception->name, exception->reason and exception->userdata directly 
+ * \param e --> an exception of type 'struct exception_t*', thrown by raise_exception()
  */
-static void print_exception(struct exception_t* exception);
+#define print_exception(e) \
+  printf("EXCEPTION CAUGHT: \n NAME: \"%s\"\n REASON: \"%s\"\n USERDATA: \"%p\"\n", e->name, e->reason, e->userdata);
 
 /*******************************************************************************
  *                                                                             *
@@ -218,31 +225,5 @@ static struct _exception_t_node* _exc_node;
   }                               \
   free(_exc_node);                \
   _exc_node = (void*)0;
-
-/*** implementation section for exception functions ***/
-static struct exception_t*
-new_exception(const char* name, const char* reason, void* userdata)
-{
-  struct exception_t *e = malloc(sizeof(struct exception_t));
-
-  e->name = name;
-  e->reason = reason;
-  e->userdata = userdata;
-
-  return e;
-}
-
-static void
-raise_exception(const char* name, const char* reason, void *userdata)
-{
-  throw(new_exception(name, reason, userdata));
-}
-
-static void
-print_exception(struct exception_t *e)
-{
-  printf("**** Exception caught: '%s': %s\n", e->name, e->reason);
-}
-/*** end of implementation section ***/
 
 #endif /* _EXCEPTION_H */

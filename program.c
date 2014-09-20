@@ -31,7 +31,7 @@
 void function(int i)
 {
     if (i < 0) {
-        throw(new_exception("BAD_PARAMETER", "negative values are not allowed", (void*)0));
+        raise_exception("BAD_PARAMETER", "negative values are not allowed", (void*)0);
     }
 }
 
@@ -67,16 +67,6 @@ int main(int argc, char** argv)
 
     /*
      * Throw an exception of the built-in 'struct exception_t' type
-     */
-    try {
-        throw(new_exception("BAD_CAST", "a type cast failed", (void*)0));
-    } catch(struct exception_t*, e) {
-        printf("Exception caught: '%s' Reason: %s. Userdata: %p\n",
-                e->name, e->reason, e->userdata);
-    } endcatch;
-
-    /*
-     * Same as before, but we throw the exception using raise_exception()
      */
     try {
         raise_exception("BAD_CAST", "a type cast failed", (void*)0);
