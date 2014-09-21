@@ -207,7 +207,7 @@ static struct _exception_t_node* _exc_node;
  * Don't worry about the missing '}', this is handled in 'endcatch'.
  */
 #define catch(type, var) \
-  else { type var = (type)_exc_head->exception;
+  else { type var = (type)_exc_head->exception; (void)var;
 
 /* Finish a catch block
  * The '}' at the beginning closes the '{' bracket from 'catch'. Furthermore,
