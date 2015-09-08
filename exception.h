@@ -69,6 +69,13 @@
 #include <setjmp.h>
 
 /**
+ * 	exCeption version
+ */
+#define EXCEPTION_VERSION_MAJOR 1
+#define EXCEPTION_VERSION_MINOR 0
+#define EXCEPTION_VERSION_STRING "1.0"
+
+/**
  * Abstract type for exception handling
  */
 struct exception_t {
